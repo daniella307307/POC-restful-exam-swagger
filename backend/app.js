@@ -4,23 +4,23 @@ const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocs = require("./utils/swagger");
 require("dotenv").config();
-
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(morgan("combined"));
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Your routes
+// Routes
 const userRoute = require("./routes/user.route");
 app.use("/api/users", userRoute);
 
-// Swagger docs
+// Swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// Error handling middleware (log errors)
+// Error handler
 app.use((err, req, res, next) => {
   console.error(`[ERROR] ${req.method} ${req.url} - ${err.message}`);
   console.error(err.stack);
@@ -30,8 +30,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`App is running in development environment at http://localhost:${PORT}`);
-  console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
-});
+// Sync DB and start server
+const sequelize = require("./config/db.config");
+
+// Sync & start server
+sequelize.sync({ alter: true }) // or force: true for dev only
+  .then(() => {
+    console.log('Database synced');
+    app.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => console.error('DB sync error:', err));

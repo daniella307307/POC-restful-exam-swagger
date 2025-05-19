@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const { registerUser, verifyEmail, loginUser, forgotPassword, resetPassword } = require("../controllers/User.controller");
+const { registerUser, verifyEmail, loginUser, forgotPassword, resetPassword, updateUser, getUser, deleteUser, getAllUsers, getUserProfile } = require("../controllers/User.controller");
+const {protect, verifyToken} = require("../middleware/auth.middleware");
+const { authorizeRoles } = require("../middleware/authorisedRoles");
 
 /**
  * @swagger
@@ -184,5 +186,369 @@ router.post("/forgot-password", forgotPassword);
  *          description: Server Error 
  */      
 router.post("/reset-password",resetPassword);
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   put:
+ *     summary: Update user details (excluding password)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the user to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: newusername
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: newemail@example.com
+ *               birthday:
+ *                 type: string
+ *                 format: date
+ *                 example: 1990-01-01
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     birthday:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       400:
+ *         description: Invalid user ID
+ *       403:
+ *         description: Not authorized to update this user
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+router.put("/:id", verifyToken, updateUser);
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   get:
+ *     summary: Get user details by ID (admin only)
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the user to retrieve
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 123
+ *                     username:
+ *                       type: string
+ *                       example: johndoe
+ *                     email:
+ *                       type: string
+ *                       example: johndoe@example.com
+ *                     birthday:
+ *                       type: string
+ *                       format: date
+ *                       example: 1990-01-01
+ *                     role:
+ *                       type: string
+ *                       example: user
+ *       400:
+ *         description: Invalid user ID supplied
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Invalid user ID
+ *       403:
+ *         description: Not authorized to access this user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Not authorized to update this user
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: User not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
+router.get("/:id", verifyToken, authorizeRoles("admin"), getUser);
+
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   delete:
+ *     summary: Delete a user by ID (admin only)
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the user to delete
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   example: {}
+ *       403:
+ *         description: Not authorized to delete users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Not authorized to delete users
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: User not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
+router.delete("/:id", verifyToken, authorizeRoles("admin"), deleteUser);
+/**
+ * @swagger
+ * /api/users/all:
+ *   get:
+ *     summary: Get all users (admin only, paginated)
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of users per page
+ *     responses:
+ *       200:
+ *         description: List of users with pagination info
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 123
+ *                       username:
+ *                         type: string
+ *                         example: johndoe
+ *                       email:
+ *                         type: string
+ *                         example: johndoe@example.com
+ *                       birthday:
+ *                         type: string
+ *                         format: date
+ *                         example: 1990-01-01
+ *                       role:
+ *                         type: string
+ *                         example: user
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalItems:
+ *                       type: integer
+ *                       example: 50
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 5
+ *                     currentPage:
+ *                       type: integer
+ *                       example: 1
+ *       401:
+ *         description: Unauthorized (missing or invalid token)
+ *       403:
+ *         description: Forbidden (not an admin)
+ *       500:
+ *         description: Server error
+ */
+router.get("/all",verifyToken, authorizeRoles("admin"), getAllUsers);
+/**
+ * @swagger
+ * /api/users/profile:
+ *   get:
+ *     summary: Get profile of logged-in user
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 123
+ *                     username:
+ *                       type: string
+ *                       example: johndoe
+ *                     email:
+ *                       type: string
+ *                       example: johndoe@example.com
+ *                     birthday:
+ *                       type: string
+ *                       format: date
+ *                       example: 1990-01-01
+ *                     role:
+ *                       type: string
+ *                       example: user
+ *       401:
+ *         description: Unauthorized (missing or invalid token)
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+
+router.get("/profile", verifyToken, getUserProfile);
+
 
 module.exports = router;

@@ -4,6 +4,9 @@ const joi = require("joi");
  * Register schema
  */
 
+// Calculate date 18 years ago
+const today = new Date();
+const eighteenYearsAgo = new Date(today.setFullYear(today.getFullYear() - 18));
 const registerSchema = joi
   .object({
     username: joi.string().alphanum().min(3).max(30).required().messages({
@@ -33,11 +36,14 @@ const registerSchema = joi
         "string.pattern.base":
           "Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character (!@#$%^&*)",
       }),
-    birthday: joi.date().max("now").required().messages({
-      "date.base": "Please enter a valid date",
-      "date.max": "Birthday cannot be in the future",
-      "any.required": "Birthday is required",
-    }),
+      birthday: joi.date()
+      .max(eighteenYearsAgo)
+      .required()
+      .messages({
+        "date.base": "Please enter a valid date",
+        "date.max": "You must be at least 18 years old",
+        "any.required": "Birthday is required",
+      }),
     role: joi.string().valid("user", "admin").default("user").messages({
       "any.only": "Role must be either user or admin",
     }),

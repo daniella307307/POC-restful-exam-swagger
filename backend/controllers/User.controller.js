@@ -2,7 +2,10 @@ const { Op } = require("sequelize");
 const User = require("../models/User.model");
 const bcrypt = require("bcryptjs");
 const { registerSchema } = require("../schemas/user.schema");
-const {generateToken, generateEmailVerificationToken} = require("../utils/jwtUtils");
+const {
+  generateToken,
+  generateEmailVerificationToken,
+} = require("../utils/jwtUtils");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/email");
 const crypto = require("crypto");
@@ -21,6 +24,14 @@ exports.registerUser = async (req, res) => {
         errors: error.details.map((d) => d.message),
       });
     }
+    if (error) {
+        console.log("Validation errors:", error.details.map(d => d.message)); // add this
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: error.details.map((d) => d.message),
+        });
+      }
     const { username, email, password, birthday, role: reqRole } = value;
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -51,7 +62,7 @@ exports.registerUser = async (req, res) => {
     delete userResponse.password;
 
     // Generate email verification token
-    const verificationToken =generateEmailVerificationToken(user);
+    const verificationToken = generateEmailVerificationToken(user);
     //Trigger email verification
     const verificationLink = `${process.env.BASE_URL}/api/users/verify-email?token=${verificationToken}`;
     // Compose email content
@@ -111,186 +122,473 @@ exports.verifyEmail = async (req, res) => {
  * Login user
  */
 
-exports.loginUser= async (req,res)=>{
-    try {
-        conat 
-    } catch (error) {
-        
-    }
-}
-
+exports.loginUser = async (req, res) => {
+  try {
+    conat;
+  } catch (error) {}
+};
 
 exports.loginUser = async (req, res) => {
-    const { identifier, password } = req.body; // identifier = email or username
-  
-    if (!identifier || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide email/username and password",
-      });
-    }
-  
-    try {
-      // Find user by email or username
-      const user = await User.findOne({
-        where: { [Op.or]: [{ email: identifier }, { username: identifier }] },
-      });
-  
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid credentials",
-        });
-      }
-  
-      // Compare password
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid credentials",
-        });
-      }
-  
-      // Optionally, check if email verified before allowing login
-      if (!user.emailVerified) {
-        return res.status(403).json({
-          success: false,
-          message: "Please verify your email before logging in.",
-        });
-      }
-  
-      // Generate token
-      const token = generateToken(user);
-  
-      // Send response without password
-      const userResponse = user.toJSON();
-      delete userResponse.password;
-  
-      res.status(200).json({
-        success: true,
-        data: userResponse,
-        token,
-        message: "Login successful",
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: "Server error: " + error.message,
-      });
-    }
-  };
-  /**
-   * Forgot password
-   * /api/user/forgot-password
-   */
+  const { identifier, password } = req.body; // identifier = email or username
 
-  exports.forgotPassword = async (req, res) => {
-    const { email } = req.body;
-  
-    if (!email) {
-      return res.status(400).json({
+  if (!identifier || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide email/username and password",
+    });
+  }
+
+  try {
+    // Find user by email or username
+    const user = await User.findOne({
+      where: { [Op.or]: [{ email: identifier }, { username: identifier }] },
+    });
+
+    if (!user) {
+      return res.status(401).json({
         success: false,
-        message: "Please provide your email address",
+        message: "Invalid credentials",
       });
     }
-  
-    try {
-      const user = await User.findOne({ where: { email } });
-  
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: "No user found with this email",
-        });
-      }
-  
-      // Generate a reset token (random string)
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      const resetTokenExpiry = Date.now() + 3600000; // 1 hour from now
-  
-      // Save to user model
-      user.resetToken = resetToken;
-      user.resetTokenExpiry = resetTokenExpiry;
-      await user.save();
-  
-      // Create reset link
-      const resetLink = `${process.env.BASE_URL}/api/users/reset-password?token=${resetToken}`;
-  
-      // Compose email
-      const subject = "Password Reset Request";
-      const html = `
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    // Optionally, check if email verified before allowing login
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email before logging in.",
+      });
+    }
+
+    // Generate token
+    const token = generateToken(user);
+
+    // Send response without password
+    const userResponse = user.toJSON();
+    delete userResponse.password;
+
+    res.status(200).json({
+      success: true,
+      data: userResponse,
+      token,
+      message: "Login successful",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message,
+    });
+  }
+};
+/**
+ * Forgot password
+ * /api/user/forgot-password
+ */
+
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide your email address",
+    });
+  }
+
+  try {
+    const user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "No user found with this email",
+      });
+    }
+
+    // Generate a reset token (random string)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpiry = Date.now() + 3600000; // 1 hour from now
+
+    // Save to user model
+    user.resetToken = resetToken;
+    user.resetTokenExpiry = resetTokenExpiry;
+    await user.save();
+
+    // Create reset link
+    const resetLink = `${process.env.BASE_URL}/api/users/reset-password?token=${resetToken}`;
+
+    // Compose email
+    const subject = "Password Reset Request";
+    const html = `
         <h2>Hello ${user.username},</h2>
         <p>You requested to reset your password. Please click the link below to set a new password:</p>
         <a href="${resetLink}">Reset Password</a>
         <p>This link will expire in 1 hour.</p>
         <p>If you didn't request this, please ignore this email.</p>
       `;
+
+    // Send email
+    await sendEmail(user.email, subject, html);
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset link sent to your email.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message,
+    });
+  }
+};
+
+/**
+ * Reset Password
+ * POST
+ * /api/users/reset-password
+ */
+
+exports.resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "Token and new password are required",
+    });
+  }
+
+  try {
+    const user = await User.findOne({
+      where: {
+        resetToken: token,
+        resetTokenExpiry: { [Op.gt]: Date.now() }, // token still valid
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset token",
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user password and clear reset fields
+    user.password = hashedPassword;
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Password reset successful. You can now login with your new password.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message,
+    });
+  }
+};
+
+/**
+ * Update user details (excluding password)
+ * PUT /api/users/:id
+ */
+exports.updateUser = async (req, res) => {
+    try {
+      // Parse and validate user ID
+      const targetUserId = parseInt(req.params.id);
+      if (isNaN(targetUserId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid user ID",
+        });
+      }
   
-      // Send email
-      await sendEmail(user.email, subject, html);
+      const loggedInUserId = parseInt(req.user.id);
+      const loggedInUserRole = req.user.role;
+  
+      // Authorization: only self or admin can update
+      if (loggedInUserRole !== "admin" && loggedInUserId !== targetUserId) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to update this user",
+        });
+      }
+  
+      // Find the user
+      const userToUpdate = await User.findByPk(targetUserId);
+      if (!userToUpdate) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+  
+      // Update allowed fields only
+      const { username, email, birthday } = req.body;
+      if (username) userToUpdate.username = username;
+      if (email) userToUpdate.email = email;
+      if (birthday) userToUpdate.birthday = birthday;
+  
+      await userToUpdate.save();
+  
+      const responseUser = userToUpdate.toJSON();
+      delete responseUser.password;
   
       res.status(200).json({
         success: true,
-        message: "Password reset link sent to your email.",
+        message: "User updated successfully",
+        data: responseUser,
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: "Server error: " + error.message,
+        message: "Error updating user: " + error.message,
       });
     }
   };
 
-  /**
-   * Reset Password
-   * POST
-   * /api/users/reset-password
-   */
-
-  exports.resetPassword = async (req, res) => {
-    const { token, newPassword } = req.body;
-  
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Token and new password are required",
-      });
-    }
-  
+/**
+ * UPDATE USER Password 
+ * PUT /api/users/update-password
+ */
+exports.updatePassword = async (req, res) => {
     try {
-      const user = await User.findOne({
-        where: {
-          resetToken: token,
-          resetTokenExpiry: { [Op.gt]: Date.now() }, // token still valid
-        },
-      });
+      const user = await User.findByPk(req.user.id);
   
       if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+  
+      const { currentPassword, newPassword } = req.body;
+  
+      // Check if passwords are provided
+      if (!currentPassword || !newPassword) {
         return res.status(400).json({
           success: false,
-          message: "Invalid or expired reset token",
+          message: "Both current and new passwords are required",
+        });
+      }
+  
+      // Check current password
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: "Current password is incorrect",
         });
       }
   
       // Hash new password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
-  
-      // Update user password and clear reset fields
       user.password = hashedPassword;
-      user.resetToken = null;
-      user.resetTokenExpiry = null;
+  
       await user.save();
   
       res.status(200).json({
         success: true,
-        message: "Password reset successful. You can now login with your new password.",
+        message: "Password updated successfully",
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: "Server error: " + error.message,
+        message: error.message || "Failed to update password",
+      });
+    }
+  };
+
+/**
+ * Get A single user
+ * GET /api/users/:id
+ * Private/Admin
+ */
+exports.getUser = async (req, res) => {
+    try {
+      // Only admin can access any user profile
+      if (req.user.role !== "admin" && req.user.id !== parseInt(req.params.id)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to access this route",
+        });
+      }
+  
+      const user = await User.findByPk(req.params.id, {
+        attributes: { exclude: ["password"] },
+      });
+  
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+  
+      res.status(200).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
       });
     }
   };
   
+  /**
+   * Delete user
+   * DELETE /api/users/:id
+   */
+  exports.deleteUser = async (req, res) => {
+    try {
+      // Only admin can delete users
+      if (req.user.role !== "admin") {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to delete users",
+        });
+      }
+  
+      const user = await User.findByPk(req.params.id);
+  
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+  
+      await user.destroy();
+  
+      res.status(200).json({
+        success: true,
+        data: {},
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  };
+  
+
+  /**
+   * Get al users 
+   * GET /api/user/all
+   */
+  exports.getAllUsers = async (req, res) => {
+    try {
+      // Parse pagination parameters with validation
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+      const offset = (page - 1) * limit;
+  
+      // Get users with pagination
+      const { count, rows: users } = await User.findAndCountAll({
+        offset,
+        limit,
+        attributes: { 
+          exclude: [
+            "password", 
+            "resetToken", 
+            "resetTokenExpiry",
+            "emailVerificationToken"
+          ] 
+        },
+        order: [["createdAt", "DESC"]],
+      });
+  
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(count / limit);
+  
+      res.status(200).json({
+        success: true,
+        data: users,
+        pagination: {
+          totalItems: count,
+          totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch users. Please try again later.",
+        error: error.message
+      });
+    }
+  };
+  /**
+   * Get profile
+   * GET /api/users/profile
+   */
+  exports.getUserProfile = async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID not found in request",
+        });
+      }
+  
+      const user = await User.findByPk(req.user.id, {
+        attributes: { 
+          exclude: [
+            "password",
+            "resetToken",
+            "resetTokenExpiry",
+            "emailVerificationToken"
+          ]
+        }
+      });
+  
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User account not found",
+        });
+      }
+  
+      res.status(200).json({
+        success: true,
+        data: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        }
+      });
+    } catch (error) {
+      console.error("Profile error:", error);
+      res.status(500).json({
+        success: false,
+        message: "An error occurred while fetching your profile",
+        error: error.message
+      });
+    }
+  };
