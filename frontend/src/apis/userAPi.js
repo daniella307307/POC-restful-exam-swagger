@@ -24,35 +24,48 @@ userApi.interceptors.request.use(
 export const authApi = {
   register: async (userData) => {
     try {
+      console.log("📤 Registering user with data:", userData);
+  
       const response = await userApi.post('/register', userData);
       const { token, data } = response.data;
-
+  
       if (token && data) {
+        console.log("✅ Registration successful. Creating session...");
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(data));
+      } else {
+        console.warn("⚠️ Token or user data missing in registration response.");
       }
-
+  
       return response.data;
     } catch (error) {
+      console.error("❌ Registration error:", error.response?.data || error.message);
       throw error.response?.data || error.message;
     }
   },
-
+  
   login: async (identifier, password) => {
     try {
+      console.log("📤 Logging in with identifier:", identifier);
+  
       const response = await userApi.post('/login', { identifier, password });
       const { token, data } = response.data;
-
+  
       if (token && data) {
+        console.log("✅ Login successful. Creating session...");
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(data));
+      } else {
+        console.warn("⚠️ Token or user data missing in login response.");
       }
-
+  
       return response.data;
     } catch (error) {
+      console.error("❌ Login error:", error.response?.data || error.message);
       throw error.response?.data || error.message;
     }
   },
+  
 
   logout: () => {
     localStorage.removeItem('token');

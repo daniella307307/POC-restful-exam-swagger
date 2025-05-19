@@ -100,6 +100,7 @@ function Signup() {
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none"
             >
+              <option>Select a Role</option>
               <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { registerUser, verifyEmail, loginUser, forgotPassword, resetPassword, updateUser, getUser, deleteUser, getAllUsers, getUserProfile } = require("../controllers/User.controller");
-const {protect, verifyToken} = require("../middleware/auth.middleware");
+const {verifyToken, isAdmin} = require("../middleware/auth.middleware");
 const { authorizeRoles } = require("../middleware/authorisedRoles");
 
 /**
@@ -429,29 +429,16 @@ router.get("/:id", verifyToken, authorizeRoles("admin"), getUser);
 router.delete("/:id", verifyToken, authorizeRoles("admin"), deleteUser);
 /**
  * @swagger
- * /api/users/all:
+ * /api/users:
  *   get:
- *     summary: Get all users (admin only, paginated)
+ *     summary: Get all users (admin only)
  *     tags:
  *       - Users
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Number of users per page
  *     responses:
  *       200:
- *         description: List of users with pagination info
+ *         description: List of all users
  *         content:
  *           application/json:
  *             schema:
@@ -467,32 +454,17 @@ router.delete("/:id", verifyToken, authorizeRoles("admin"), deleteUser);
  *                     properties:
  *                       id:
  *                         type: integer
- *                         example: 123
  *                       username:
  *                         type: string
- *                         example: johndoe
  *                       email:
  *                         type: string
- *                         example: johndoe@example.com
  *                       birthday:
  *                         type: string
  *                         format: date
- *                         example: 1990-01-01
  *                       role:
  *                         type: string
- *                         example: user
- *                 pagination:
- *                   type: object
- *                   properties:
- *                     totalItems:
- *                       type: integer
- *                       example: 50
- *                     totalPages:
- *                       type: integer
- *                       example: 5
- *                     currentPage:
- *                       type: integer
- *                       example: 1
+ *                       status:
+ *                         type: string
  *       401:
  *         description: Unauthorized (missing or invalid token)
  *       403:
@@ -500,7 +472,8 @@ router.delete("/:id", verifyToken, authorizeRoles("admin"), deleteUser);
  *       500:
  *         description: Server error
  */
-router.get("/all",verifyToken, authorizeRoles("admin"), getAllUsers);
+
+router.get('/', [verifyToken, isAdmin], getAllUsers);
 /**
  * @swagger
  * /api/users/profile:

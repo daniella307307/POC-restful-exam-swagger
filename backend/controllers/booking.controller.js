@@ -1,8 +1,8 @@
 // controllers/booking.controller.js
-const db = require('../models');
+const db = require('../models/relations');
 const Booking = db.Booking;
-const ParkingSlot = db.ParkingSlot;
-const User = db.User;
+const parkingSpot = db.ParkingSpot;
+const user = db.User;
 const { Op } = require('sequelize');
 
 // Fee calculation placeholder
@@ -19,36 +19,33 @@ function generateTicketNumber() {
 // User: Create a new booking request
 exports.createBooking = async (req, res) => {
     try {
-        const { slotId, startTime, endTime } = req.body;
+        const { parkingSpotId, startTime, endTime } = req.body;
         const userId = req.userId;
 
-        if (!slotId || !startTime || !endTime) {
-            return res.status(400).send({ message: "Slot ID, start time, and end time are required." });
+        if (!parkingSpotId || !startTime || !endTime) {
+            return res.status(400).send({ message: "Parking slot ID, start time, and end time are required." });
         }
+
         if (new Date(startTime) >= new Date(endTime)) {
             return res.status(400).send({ message: "End time must be after start time." });
         }
-         if (new Date(startTime) < new Date()) {
+
+        if (new Date(startTime) < new Date()) {
             return res.status(400).send({ message: "Booking start time cannot be in the past." });
         }
 
-
-        const slot = await ParkingSlot.findByPk(slotId);
+        const slot = await parkingSpot.findByPk(parkingSpotId);
         if (!slot) {
             return res.status(404).send({ message: "Parking slot not found." });
-        }
-        if (slot.status !== 'available') {
-             // This simple check is not enough for time-based availability.
-             // We need to check for overlapping bookings.
         }
 
         // Check for overlapping bookings for the selected slot
         const overlappingBookings = await Booking.count({
             where: {
-                slotId: slotId,
-                status: { [Op.in]: ['pending', 'approved'] }, // Consider only active bookings
+                parkingSpotId,
+                status: { [Op.in]: ['pending', 'approved'] },
                 [Op.or]: [
-                    { // New booking starts during an existing booking
+                    {
                         startTime: { [Op.lt]: new Date(endTime) },
                         endTime: { [Op.gt]: new Date(startTime) }
                     }
@@ -60,19 +57,20 @@ exports.createBooking = async (req, res) => {
             return res.status(409).send({ message: "Slot is already booked for the selected time period." });
         }
 
-
         const booking = await Booking.create({
             userId,
-            slotId,
+            parkingSpotId,
             startTime,
             endTime,
-            status: 'pending', // Default status
+            status: 'pending',
         });
+
         res.status(201).send(booking);
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
 };
+
 
 // User: List own bookings
 exports.getMyBookings = async (req, res) => {
@@ -80,8 +78,7 @@ exports.getMyBookings = async (req, res) => {
         const bookings = await Booking.findAll({
             where: { userId: req.userId },
             include: [
-                { model: ParkingSlot, as: 'slot', attributes: ['slotNumber', 'description'] },
-                // { model: User, as: 'user', attributes: ['firstName', 'email'] } // Not needed for 'my' bookings
+                { model: parkingSpot, attributes: ['spotNumber', 'spotType', 'status'] }
             ],
             order: [['startTime', 'DESC']]
         });
@@ -91,8 +88,9 @@ exports.getMyBookings = async (req, res) => {
     }
 };
 
+
 // User: View all current/future approved bookings (Parking Lot Status)
-exports.getParkingLotStatus = async (req, res) => {
+exports.getParkingspotStatus = async (req, res) => {
     try {
         const bookings = await Booking.findAll({
             where: {
@@ -100,10 +98,10 @@ exports.getParkingLotStatus = async (req, res) => {
                 endTime: { [Op.gte]: new Date() } // End time is in the future or now
             },
             include: [
-                { model: ParkingSlot, as: 'slot', attributes: ['id', 'slotNumber'] },
+                { model: parkingSpot, attributes: ['id', 'spotNumber'] },
                 // { model: User, as: 'user', attributes: ['id', 'firstName'] } // Might be privacy concern
             ],
-            attributes: ['id', 'slotId', 'startTime', 'endTime', 'status']
+            attributes: ['id', 'parkingspotId', 'startTime', 'endTime', 'status']
         });
         res.status(200).send(bookings);
     } catch (error) {
@@ -118,8 +116,8 @@ exports.getAllBookings = async (req, res) => {
         // Add filtering by status, user, date range etc. later
         const bookings = await Booking.findAll({
             include: [
-                { model: User, as: 'user', attributes: ['id', 'firstName', 'email'] },
-                { model: ParkingSlot, as: 'slot', attributes: ['id', 'slotNumber'] }
+                { model: user, attributes: ['id', 'username', 'email'] },
+                { model: parkingSpot, attributes: ['id', 'spotNumber'] }
             ],
             order: [['createdAt', 'DESC']]
         });
@@ -132,44 +130,62 @@ exports.getAllBookings = async (req, res) => {
 // Admin: Approve a booking
 exports.approveBooking = async (req, res) => {
     try {
-        const bookingId = req.params.id;
-        const booking = await Booking.findOne({
-            where: { id: bookingId },
-            include: [
-                { model: User, as: 'user', attributes: ['email', 'firstName'] },
-                { model: ParkingSlot, as: 'slot' }
-            ]
+        const booking = await Booking.findByPk(req.params.id, {
+            include: [{ model: User }, { model: ParkingSpot }]
         });
 
         if (!booking) {
             return res.status(404).send({ message: "Booking not found." });
         }
+
         if (booking.status !== 'pending') {
-            return res.status(400).send({ message: `Booking is already ${booking.status}.` });
+            return res.status(400).send({ message: "Only pending bookings can be approved." });
         }
 
         booking.status = 'approved';
-        booking.ticketNumber = generateTicketNumber();
+        booking.ticketNumber = `TICKET-${Date.now()}-${booking.id}`;
         booking.totalFee = calculateFee(booking.startTime, booking.endTime);
+
         await booking.save();
 
-        // TODO: Trigger notification (app & email) with ticket
-        // Example: emailService.sendBookingApproval(booking.user.email, booking, ticketDetails);
-        console.log(`Booking ${booking.id} approved. Ticket: ${booking.ticketNumber}. Fee: ${booking.totalFee}. Notify user: ${booking.user.email}`);
+        // Send email notification
+        const subject = "🎟️ Your Parking Ticket is Approved!";
+        const html = `
+            <h2>Hi ${booking.user.name},</h2>
+            <p>Your parking booking has been <strong>approved</strong>.</p>
 
+            <h3>📄 Ticket Details</h3>
+            <ul>
+              <li><strong>Ticket Number:</strong> ${booking.ticketNumber}</li>
+              <li><strong>Slot:</strong> ${booking.ParkingSpot.slotNumber} (${booking.ParkingSpot.slotType})</li>
+              <li><strong>Start Time:</strong> ${new Date(booking.startTime).toLocaleString()}</li>
+              <li><strong>End Time:</strong> ${new Date(booking.endTime).toLocaleString()}</li>
+              <li><strong>Total Fee:</strong> $${booking.totalFee}</li>
+            </ul>
 
-        // Optionally update slot status if you maintain an explicit 'occupied' status on the slot model
-        // For time-based, this is less critical as availability is checked on new booking creation.
-        // if (booking.slot) {
-        //    booking.slot.status = 'occupied'; // This is too simplistic
-        //    await booking.slot.save();
-        // }
+            <p>✅ Please present this ticket upon arrival at the parking lot.</p>
+
+            <p>Thanks,<br>🚗 Parking Management Team</p>
+        `;
+
+        await sendEmail(booking.user.email, subject, html);
+
+        console.log(`Booking ${booking.id} approved. Email sent to ${booking.user.email}`);
 
         res.status(200).send(booking);
     } catch (error) {
+        console.error("Approval error:", error);
         res.status(500).send({ message: error.message });
     }
 };
+
+function calculateFee(startTime, endTime) {
+    const ratePerHour = 500; // Example rate
+    const durationMs = new Date(endTime) - new Date(startTime);
+    const hours = Math.ceil(durationMs / (1000 * 60 * 60));
+    return hours * ratePerHour;
+}
+
 
 // Admin: Reject a booking
 exports.rejectBooking = async (req, res) => {
@@ -177,7 +193,7 @@ exports.rejectBooking = async (req, res) => {
         const bookingId = req.params.id;
         const booking = await Booking.findOne({
             where: { id: bookingId },
-            include: [{ model: User, as: 'user', attributes: ['email', 'firstName'] }]
+            include: [{ model: user, attributes: ['email', 'username'] }]
         });
 
         if (!booking) {
@@ -246,7 +262,7 @@ exports.getBookingById = async (req, res) => {
         const queryOptions = {
             include: [
                 { model: User, as: 'user', attributes: ['id', 'firstName', 'email'] },
-                { model: ParkingSlot, as: 'slot', attributes: ['id', 'slotNumber'] }
+                { model: parkingSpot, as: 'slot', attributes: ['id', 'slotNumber'] }
             ]
         };
 

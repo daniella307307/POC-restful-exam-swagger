@@ -494,52 +494,31 @@ exports.getUser = async (req, res) => {
    * Get al users 
    * GET /api/user/all
    */
-  exports.getAllUsers = async (req, res) => {
-    try {
-      // Parse pagination parameters with validation
-      const page = Math.max(1, parseInt(req.query.page) || 1);
-      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
-      const offset = (page - 1) * limit;
-  
-      // Get users with pagination
-      const { count, rows: users } = await User.findAndCountAll({
-        offset,
-        limit,
-        attributes: { 
-          exclude: [
-            "password", 
-            "resetToken", 
-            "resetTokenExpiry",
-            "emailVerificationToken"
-          ] 
-        },
-        order: [["createdAt", "DESC"]],
-      });
-  
-      // Calculate pagination metadata
-      const totalPages = Math.ceil(count / limit);
-  
-      res.status(200).json({
-        success: true,
-        data: users,
-        pagination: {
-          totalItems: count,
-          totalPages,
-          currentPage: page,
-          itemsPerPage: limit,
-          hasNextPage: page < totalPages,
-          hasPreviousPage: page > 1,
-        },
-      });
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch users. Please try again later.",
-        error: error.message
-      });
-    }
-  };
+
+// Admin: Get all users (unpaginated)
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: {
+        exclude: ['password', 'resetToken', 'resetTokenExpiry', 'emailVerificationToken'],
+      },
+      order: [['createdAt', 'DESC']],
+    });
+
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch users.',
+      error: error.message,
+    });
+  }
+};
+
   /**
    * Get profile
    * GET /api/users/profile

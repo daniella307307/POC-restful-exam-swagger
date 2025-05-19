@@ -19,6 +19,7 @@ const verifyToken = (req, res, next) => {
     if (err) {
       return res.status(401).send({ message: 'Unauthorized!' });
     }
+    console.log('Decoded token:', decoded);
     req.userId = decoded.id;
     req.userRole = decoded.role; // Assuming you put role in JWT payload
     next();
@@ -28,12 +29,18 @@ const verifyToken = (req, res, next) => {
 const isAdmin = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.userId);
-    if (user && user.role === 'admin') {
+    console.log('User found:', user);
+    if (user && user.role.trim().toLowerCase() === 'admin') {
+      
       next();
       return;
     }
+    console.log('Checking admin role for:', user?.role);
+
+    console.log('Access denied for role:', user?.role);
     res.status(403).send({ message: 'Require Admin Role!' });
   } catch (error) {
+    console.error('Role validation error:', error);
     res.status(500).send({ message: 'Unable to validate User role!' });
   }
 };

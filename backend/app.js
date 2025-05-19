@@ -15,7 +15,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 const userRoute = require("./routes/user.route");
+const slotRoutes = require("./routes/slot.route");
+const booking = require('./routes/booking.route')
 app.use("/api/users", userRoute);
+app.use('/api/slots',slotRoutes)
+app.use('/api/bookings',booking);
 
 // Swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));

@@ -14,7 +14,7 @@ const Spot = sequelize.define(
       // e.g., "A1", "101", "EV05"
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
+      
     },
 
     status: {
