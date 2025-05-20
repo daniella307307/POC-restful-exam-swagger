@@ -115,31 +115,31 @@ export const emailVerificationApi = {
 
 // ✅ User Profile APIs
 export const userProfileApi = {
-  getMe: async () => {
-    const res = await userApi.get('/me');
-    return res.data;
+ getMe: async () => {
+    const response = await userApi.get('/me');  
+    return response.data;
   },
-  // In userApi.js
-updateProfile: async (formData) => {
-  try {
-    // Make sure to include the user ID in the formData
-    const userId = JSON.parse(localStorage.getItem('user')).id;
-    formData.append('id', userId);
-    
-    const res = await userApi.put(`/update/${userId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    return res.data.data;
-  } catch (error) {
-    throw error.response?.data || error.message;
-  }
-},
+
+  updateProfile: async (formData) => {
+    try {
+      const userId = JSON.parse(localStorage.getItem('user')).id;
+      formData.append('id', userId);
+      
+      const res = await userApi.put(`/update/${userId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return res.data.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   updatePassword: async (currentPassword, newPassword) => {
     const res = await userApi.put('/update-password', { currentPassword, newPassword });
     return res.data;
-  },
+  }
 };
 
 // ✅ Admin APIs

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { registerUser, verifyEmail, loginUser, forgotPassword, resetPassword, updateUser, getUser, deleteUser, getAllUsers, getUserProfile } = require("../controllers/User.controller");
-const {verifyToken, isAdmin} = require("../middleware/auth.middleware");
+const { registerUser, verifyEmail, loginUser, forgotPassword, resetPassword, updateUser, getUser, deleteUser, getAllUsers, getMe } = require("../controllers/User.controller");
+const {verifyToken, isAdmin, isUser} = require("../middleware/auth.middleware");
 const { authorizeRoles } = require("../middleware/authorisedRoles");
 
 /**
@@ -521,7 +521,7 @@ router.get('/', [verifyToken, isAdmin], getAllUsers);
  *         description: Server error
  */
 
-router.get("/profile", verifyToken, getUserProfile);
+router.get("/me", verifyToken, getMe);
 
 
 module.exports = router;

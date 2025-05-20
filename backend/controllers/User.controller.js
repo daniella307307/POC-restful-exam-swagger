@@ -523,51 +523,28 @@ exports.getAllUsers = async (req, res) => {
    * Get profile
    * GET /api/users/profile
    */
-  exports.getUserProfile = async (req, res) => {
-    try {
-      if (!req.user?.id) {
-        return res.status(400).json({
-          success: false,
-          message: "User ID not found in request",
-        });
-      }
-  
-      const user = await User.findByPk(req.user.id, {
-        attributes: { 
-          exclude: [
-            "password",
-            "resetToken",
-            "resetTokenExpiry",
-            "emailVerificationToken"
-          ]
-        }
-      });
-  
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: "User account not found",
-        });
-      }
-  
-      res.status(200).json({
-        success: true,
-        data: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          emailVerified: user.emailVerified,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        }
-      });
-    } catch (error) {
-      console.error("Profile error:", error);
-      res.status(500).json({
+ exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'emailVerificationToken'] },
+      order: [['createdAt', 'DESC']],
+    });
+
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: "An error occurred while fetching your profile",
-        error: error.message
+        message: "User not found",
       });
     }
-  };
+
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
